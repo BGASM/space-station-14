@@ -37,3 +37,33 @@ public sealed class PdaRequestUpdateInterfaceMessage : BoundUserInterfaceMessage
 {
     public PdaRequestUpdateInterfaceMessage() { }
 }
+
+[Serializable, NetSerializable]
+public sealed class PdaSendMessage : BoundUserInterfaceMessage
+{
+    public PdaSendMessage() { }
+}
+
+[Serializable, NetSerializable]
+public sealed class PdaRefreshMessage : BoundUserInterfaceMessage
+{
+    public PdaRefreshMessage() { }
+}
+
+[Serializable, NetSerializable]
+public sealed class PdaTextMessage : BoundUserInterfaceMessage
+{
+
+    public DateTime SentAt { get; }
+    public string SenderName { get; }
+    public string ReceiverName { get; }
+    public string Message { get; }
+
+    public PdaTextMessage(string senderName, string receiverName, string message, DateTime? sentAt = default)
+    {
+        SentAt = sentAt ?? DateTime.Now;
+        SenderName = senderName;
+        ReceiverName = receiverName;
+        Message = message;
+    }
+}

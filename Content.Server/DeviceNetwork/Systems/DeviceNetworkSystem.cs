@@ -329,6 +329,7 @@ namespace Content.Server.DeviceNetwork.Systems
                 {
                     totalDevices += 1;
                     hasTargetedDevice = true;
+                    Logger.Info($"Found a decive with address: {device.Address} on {device.ReceiveFrequency}");
                 }
                 var deviceCopy = ArrayPool<DeviceNetworkComponent>.Shared.Rent(totalDevices);
                 if (devices != null)

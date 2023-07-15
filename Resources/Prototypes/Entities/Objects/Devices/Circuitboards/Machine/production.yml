@@ -905,3 +905,15 @@
       Steel: 5
       CableHV: 5
       Cable: 2
+
+- type: entity
+  id: PdaMessageServerMachineCircuitboard
+  parent: BaseMachineCircuitboard
+  name: pda message server machine board
+  description: A machine printed circuit board for a pda message.
+  components:
+    - type: MachineBoard
+      prototype: PdaMessageServer
+      materialRequirements:
+        Steel: 1
+        Cable: 2

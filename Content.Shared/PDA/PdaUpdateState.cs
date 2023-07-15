@@ -14,10 +14,15 @@ namespace Content.Shared.PDA
         public bool HasUplink;
         public bool CanPlayMusic;
         public string? Address;
+        public List<Dictionary<string, string>>? MessageList;
+        public Dictionary<string, string> KnownPDAMessengers { get; } = new();
 
         public PdaUpdateState(bool flashlightEnabled, bool hasPen, PdaIdInfoText pdaOwnerInfo,
             string? stationName, bool hasUplink = false,
-            bool canPlayMusic = false, string? address = null)
+            bool canPlayMusic = false, string? address = null,
+            List<Dictionary<string, string>>? messageList = null,
+            Dictionary<string, string>? knownPDAMessengers = null
+            )
         {
             FlashlightEnabled = flashlightEnabled;
             HasPen = hasPen;
@@ -26,6 +31,9 @@ namespace Content.Shared.PDA
             CanPlayMusic = canPlayMusic;
             StationName = stationName;
             Address = address;
+            MessageList = messageList;
+            if (knownPDAMessengers != null)
+                KnownPDAMessengers = knownPDAMessengers;
         }
     }
 

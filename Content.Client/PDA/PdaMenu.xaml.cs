@@ -9,7 +9,7 @@ using Robust.Client.Graphics;
 using Robust.Client.UserInterface.XAML;
 using Robust.Client.UserInterface.Controls;
 using Robust.Shared.Timing;
-
+using Content.Client.PDA.Messenger;
 namespace Content.Client.PDA
 {
     [GenerateTypedNameReferences]
@@ -23,17 +23,38 @@ namespace Content.Client.PDA
         public const int ProgramListView = 1;
         public const int SettingsView = 2;
         public const int ProgramContentView = 3;
+        // <------ PDA Messenger ------>
+        public const int MessengerView = 4;
+        public const int ConversationView = 5;
 
         private int _currentView;
+        // <------ PDA Messenger Tests------>
+        //private List<string> testRecipientList = new List<string> { "bob", "Mary", "Geraldo" };
+
+        private List<PdaMessengerUiState.PdaMessage> testMessages = new List<PdaMessengerUiState.PdaMessage>()
+        {
+            new PdaMessengerUiState.PdaMessage("bob", "Howdy"),
+            new PdaMessengerUiState.PdaMessage("mary", "Yo"),
+            new PdaMessengerUiState.PdaMessage("Geraldo", "Hello")
+        };
+
+        private List<PdaMessengerUiState.PdaConversation> testConversations =
+            new List<PdaMessengerUiState.PdaConversation>() { };
 
         public event Action<EntityUid>? OnProgramItemPressed;
         public event Action<EntityUid>? OnUninstallButtonPressed;
         public event Action<EntityUid>? OnInstallButtonPressed;
+        public event Action<Dictionary<string, string>>? OnNamePressed;
+
         public PdaMenu()
         {
             IoCManager.InjectDependencies(this);
             _gameTicker = _entitySystem.GetEntitySystem<ClientGameTicker>();
             RobustXamlLoader.Load(this);
+
+            PopulateTestConversations();
+            PopulateConversationContainer(new PdaMessengerUiState(testConversations).PdaConversations);
+
 
             ViewContainer.OnChildAdded += control => control.Visible = false;
 
@@ -42,9 +63,12 @@ namespace Content.Client.PDA
             EjectPenButton.IconTexture = new SpriteSpecifier.Texture(new("/Textures/Interface/pencil.png"));
             EjectIdButton.IconTexture = new SpriteSpecifier.Texture(new("/Textures/Interface/eject.png"));
             ProgramCloseButton.IconTexture = new SpriteSpecifier.Texture(new("/Textures/Interface/Nano/cross.svg.png"));
+            MessageButton.IconTexture = new SpriteSpecifier.Texture(new("/Textures/Interface/message.png"));
 
 
             HomeButton.OnPressed += _ => ToHomeScreen();
+            MessageButton.OnPressed += _ => ToMessageScreen();
+            CreateMessageButton.OnPressed += _ => ToConversationScreen();
 
             ProgramListButton.OnPressed += _ =>
             {
@@ -52,6 +76,7 @@ namespace Content.Client.PDA
                 ProgramListButton.IsCurrent = true;
                 SettingsButton.IsCurrent = false;
                 ProgramTitle.IsCurrent = false;
+                MessageButton.IsCurrent = false;
 
                 ChangeView(ProgramListView);
             };
@@ -63,6 +88,7 @@ namespace Content.Client.PDA
                 ProgramListButton.IsCurrent = false;
                 SettingsButton.IsCurrent = true;
                 ProgramTitle.IsCurrent = false;
+                MessageButton.IsCurrent = false;
 
                 ChangeView(SettingsView);
             };
@@ -73,6 +99,7 @@ namespace Content.Client.PDA
                 ProgramListButton.IsCurrent = false;
                 SettingsButton.IsCurrent = false;
                 ProgramTitle.IsCurrent = true;
+                MessageButton.IsCurrent = false;
 
                 ChangeView(ProgramContentView);
             };
@@ -88,9 +115,18 @@ namespace Content.Client.PDA
             ToHomeScreen();
         }
 
+        public void PopulateTestConversations()
+        {
+            foreach (PdaMessengerUiState.PdaMessage message in testMessages)
+            {
+                testConversations.Add(new PdaMessengerUiState.PdaConversation(message));
+            }
+        }
+
         public void UpdateState(PdaUpdateState state)
         {
             FlashLightToggleButton.IsActive = state.FlashlightEnabled;
+            PopulateRecipientList(state.KnownPDAMessengers);
 
             if (state.PdaOwnerInfo.ActualOwnerName != null)
             {
@@ -214,8 +250,91 @@ namespace Content.Client.PDA
             ProgramListButton.IsCurrent = false;
             SettingsButton.IsCurrent = false;
             ProgramTitle.IsCurrent = false;
+            MessageButton.IsCurrent = false;
 
             ChangeView(HomeView);
+        }
+
+        public void ToMessageScreen()
+        {
+            HomeButton.IsCurrent = false;
+            ProgramListButton.IsCurrent = false;
+            SettingsButton.IsCurrent = false;
+            ProgramTitle.IsCurrent = false;
+            MessageButton.IsCurrent = true;
+
+            ChangeView(MessengerView);
+
+        }
+
+        public void ToConversationScreen()
+        {
+            HomeButton.IsCurrent = false;
+            ProgramListButton.IsCurrent = false;
+            SettingsButton.IsCurrent = false;
+            ProgramTitle.IsCurrent = false;
+            MessageButton.IsCurrent = true;
+
+            ChangeView(ConversationView);
+        }
+
+        public void PopulateRecipientList(Dictionary<string, string> recipientList)
+        {
+            foreach (var recipient in recipientList)
+            {
+                var row = new BoxContainer();
+                row.HorizontalExpand = true;
+                row.Margin = new Thickness(4);
+
+                var label = new Button();
+                label.Text = recipient.Value;
+                label.HorizontalExpand = true;
+                label.ClipText = true;
+                label.Name = recipient.Key;
+                label.OnPressed += _ =>
+                    OnNamePressed?.Invoke(new Dictionary<string, string>() { {label.Name, label.Text} });
+                row.AddChild(label);
+                RecipientList.AddChild(row);
+            }
+        }
+
+        public void PopulateConversationContainer(List<PdaMessengerUiState.PdaConversation> conversations)
+        {
+            ConversationContainer.RemoveAllChildren();
+            ConversationScrollContainer.HScrollEnabled = conversations.Count > 9;
+            foreach (var conversation in conversations)
+            {
+                AddPdaMessage(conversation);
+            }
+        }
+
+        public void UpdateRecipient(string address, string name)
+        {
+            RxCollapsibleBody.Visible = false;
+            RxCollapsibleHeading.Title = name + "-" + address;
+        }
+
+        public void AddPdaMessage(PdaMessengerUiState.PdaConversation conversation)
+        {
+            var row = new BoxContainer();
+            row.HorizontalExpand = true;
+            row.Orientation = BoxContainer.LayoutOrientation.Horizontal;
+            row.Margin = new Thickness(4);
+
+            var nameLabel = new Label();
+            nameLabel.Text = conversation.Name;
+            nameLabel.HorizontalExpand = false;
+            nameLabel.SetWidth = 100f;
+            nameLabel.ClipText = true;
+            row.AddChild(nameLabel);
+
+            var messageLabel = new Label();
+            messageLabel.Text = conversation.LastMessage;
+            messageLabel.HorizontalExpand = true;
+            messageLabel.ClipText = true;
+            row.AddChild(messageLabel);
+
+            ConversationContainer.AddChild(row);
         }
 
         /// <summary>
@@ -244,6 +363,7 @@ namespace Content.Client.PDA
             ProgramCloseButton.Visible = true;
             ProgramListButton.Visible = false;
             SettingsButton.Visible = false;
+            MessageButton.IsCurrent = false;
 
             ProgramTitle.LabelText = title;
             ChangeView(ProgramContentView);

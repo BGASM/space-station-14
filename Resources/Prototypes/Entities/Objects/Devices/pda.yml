@@ -65,8 +65,9 @@
   - type: Ringer
   - type: DeviceNetwork
     deviceNetId: Wireless
-    receiveFrequencyId: PDA
-    prefix: device-address-prefix-console
+    transmitFrequency: 7982
+    receiveFrequency: 7981
+    autoConnect: true
   - type: WirelessNetworkConnection
     range: 500
   - type: CartridgeLoader

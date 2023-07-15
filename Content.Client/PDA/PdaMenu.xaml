@@ -17,11 +17,13 @@
         <pda:PdaNavigationButton Name="ProgramCloseButton" Access="Public" IconScale="0.5 0.5" BorderThickness="0 0 2 2"
                                  Visible="False" IsActive="False" SetWidth="32"/>
 
+        <pda:PdaNavigationButton Name="MessageButton" Access="Public" SetWidth="32"/>
         <pda:PdaNavigationButton Name="FlashLightToggleButton" Access="Public" ToggleMode="True" ActiveFgColor="#EAEFBB" SetWidth="32"/>
         <pda:PdaNavigationButton Name="EjectPenButton" Access="Public" SetWidth="32"/>
         <pda:PdaNavigationButton Name="EjectIdButton" Access="Public" SetWidth="32"/>
     </BoxContainer>
     <BoxContainer Name="ViewContainer" HorizontalExpand="True" VerticalExpand="True" Access="Public">
+        <!-- 0 -->
         <BoxContainer Orientation="Vertical"
                       VerticalExpand="True"
                       HorizontalExpand="True"
@@ -42,6 +44,7 @@
             <RichTextLabel Name="StationTimeLabel" Access="Public" />
             <RichTextLabel Name="StationAlertLevelInstructions" Access="Public" />
         </BoxContainer>
+        <!-- 1 -->
         <ScrollContainer HorizontalExpand="True" VerticalExpand="True" HScrollEnabled="True">
             <BoxContainer Orientation="Vertical"
                           VerticalExpand="True"
@@ -50,6 +53,7 @@
                           Name="ProgramList"
                           Margin="4"/>
         </ScrollContainer>
+        <!-- 2 -->
         <ScrollContainer HorizontalExpand="True" VerticalExpand="True" HScrollEnabled="True">
             <BoxContainer Orientation="Vertical"
                           VerticalExpand="True"
@@ -79,12 +83,36 @@
                                        Description="{Loc 'pda-bound-user-interface-lock-uplink-description'}"/>
             </BoxContainer>
         </ScrollContainer>
+        <!-- 3 -->
         <BoxContainer Orientation="Vertical"
                       VerticalExpand="True"
                       HorizontalExpand="True"
                       Name="ProgramView"
                       Access="Public">
         </BoxContainer>
+        <!-- 4 -->
+        <BoxContainer Orientation="Vertical" HorizontalExpand="True" VerticalExpand="True">
+            <Button Name="CreateMessageButton" Text="Create New Message" HorizontalExpand="True" SetHeight="32" />
+            <ScrollContainer Name="ConversationScrollContainer" HorizontalExpand="True" VerticalExpand="True">
+                <BoxContainer Orientation="Vertical" Name="ConversationContainer" HorizontalExpand="True" VerticalExpand="True" VerticalAlignment="Top" Margin="3 0"/>
+            </ScrollContainer>
+        </BoxContainer>
+        <!-- 5 -->
+        <BoxContainer Orientation="Vertical" HorizontalExpand="True" VerticalExpand="True">
+            <Collapsible Name="RecipientCollapsible" Orientation="Vertical" HorizontalExpand="True" VerticalExpand="True">
+                <CollapsibleHeading Name="RxCollapsibleHeading" Access="Public" Title="Recipient" SetHeight="32" />
+                <CollapsibleBody Name="RxCollapsibleBody" VerticalExpand="True">
+                    <ScrollContainer HorizontalExpand="True" VerticalExpand="True">
+                        <BoxContainer Orientation="Vertical" Name="RecipientList" HorizontalExpand="True" VerticalExpand="True" VerticalAlignment="Top" Margin="3 0"/>
+                    </ScrollContainer>
+                </CollapsibleBody>
+            </Collapsible>
+            <ScrollContainer HorizontalExpand="True" VerticalExpand="True">
+                <BoxContainer Orientation="Vertical" Name="ConversationMessageContainer" HorizontalExpand="True" VerticalExpand="True" VerticalAlignment="Top" Margin="3 0"/>
+            </ScrollContainer>
+            <LineEdit Name="MessageInput" HorizontalExpand="True" SetHeight="32"/>
+        </BoxContainer>
+
     </BoxContainer>
     <BoxContainer Name="ContentFooter" HorizontalExpand="True" SetHeight="28" Margin="1 0 2 1">
         <controls:StripeBack HasBottomEdge="False" HasMargins="False" HorizontalExpand="True">

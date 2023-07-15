@@ -1,3 +1,4 @@
+using System.Linq;
 using Content.Client.CartridgeLoader;
 using Content.Shared.CartridgeLoader;
 using Content.Shared.CCVar;
@@ -76,7 +77,12 @@ namespace Content.Client.PDA
             _menu.OnProgramItemPressed += ActivateCartridge;
             _menu.OnInstallButtonPressed += InstallCartridge;
             _menu.OnUninstallButtonPressed += UninstallCartridge;
+            _menu.OnNamePressed += NamePressed;
             _menu.ProgramCloseButton.OnPressed += _ => DeactivateActiveCartridge();
+            _menu.RxCollapsibleHeading.OnToggled += _ =>
+            {
+                SendMessage(new PdaRefreshMessage());
+            };
 
             var borderColorComponent = GetBorderColorComponent();
             if (borderColorComponent == null)
@@ -126,6 +132,18 @@ namespace Content.Client.PDA
                 return;
 
             _menu?.Dispose();
+        }
+
+        public void NamePressed(Dictionary<string, string> contactInfo)
+        {
+            var ContactInfo = contactInfo.First();
+            Logger.Info($"In NamePressed - {ContactInfo.Key} - {ContactInfo.Value}");
+            _menu?.UpdateRecipient(ContactInfo.Key, ContactInfo.Value);
+        }
+
+        public void Send(string senderName, string receiverName, string message)
+        {
+            SendMessage(new PdaTextMessage(senderName, receiverName, message));
         }
 
         private PdaBorderColorComponent? GetBorderColorComponent()
