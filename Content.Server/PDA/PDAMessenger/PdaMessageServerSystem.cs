@@ -135,13 +135,20 @@ public sealed class PdaMessageServerSystem : EntitySystem
                     if (!args.Data.TryGetValue(PDA_DATA_FRNAME, out string? pdaOwnerName))
                         return;
 
-                    component.KnownPDAMessengers[args.SenderAddress] = pdaOwnerName;
-
+                    var foundPda = component.KnownPDAMessengers.Find(p => p.Address == args.SenderAddress);
+                    if (foundPda != null)
+                    {
+                        foundPda.Name = pdaOwnerName;
+                    }
+                    else
+                    {
+                        component.KnownPDAMessengers.Add(new KnownPda(pdaOwnerName, args.SenderAddress));
+                    }
                     break;
 
                 case PDA_CMD_TX: //PDA sends TX message to server, add message to Queue
                     Logger.Debug($"Made it to server.");
-                    if (!args.Data.TryGetValue(PDA_DATA_RXLIST, out List<Recipient>? recipientList) ||
+                    if (!args.Data.TryGetValue(PDA_DATA_RXLIST, out List<KnownPda>? recipientList) ||
                         !args.Data.TryGetValue(PDA_DATA_TONAME, out string? receiverName) ||
                         !args.Data.TryGetValue(PDA_DATA_TOADDR, out string? recieverAddress) ||
                         !args.Data.TryGetValue(PDA_DATA_MSG, out string? messageContent) ||

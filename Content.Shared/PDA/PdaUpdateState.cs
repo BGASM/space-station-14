@@ -15,13 +15,13 @@ namespace Content.Shared.PDA
         public bool CanPlayMusic;
         public string? Address;
         public List<PdaConversation> ConversationList { get; } = new();
-        public Dictionary<string, string> KnownPDAMessengers { get; } = new();
+        public List<KnownPda> KnownPDAMessengers { get; } = new();
 
         public PdaUpdateState(bool flashlightEnabled, bool hasPen, PdaIdInfoText pdaOwnerInfo,
             string? stationName, bool hasUplink = false,
             bool canPlayMusic = false, string? address = null,
             List<PdaConversation>? conversationList = null,
-            Dictionary<string, string>? knownPDAMessengers = null
+            List<KnownPda>? knownPDAMessengers = null
             )
         {
             FlashlightEnabled = flashlightEnabled;
@@ -36,6 +36,18 @@ namespace Content.Shared.PDA
         }
     }
 
+    [Serializable, NetSerializable]
+    public sealed class KnownPda
+    {
+        public string Name { get; set; }
+        public string Address { get; set; }
+
+        public KnownPda(string name, string address)
+        {
+            Name = name;
+            Address = address;
+        }
+    }
     [Serializable, NetSerializable]
     public struct PdaIdInfoText
     {

@@ -249,7 +249,7 @@ namespace Content.Server.PDA
 
                     case PDA_CMD_TX: // PDA server sends messages to download
                         Logger.Debug($"Made it back to the PDA.");
-                        if (!args.Data.TryGetValue(PDA_DATA_RXLIST, out List<Recipient>? recipientList) ||
+                        if (!args.Data.TryGetValue(PDA_DATA_RXLIST, out List<KnownPda>? recipientList) ||
                             !args.Data.TryGetValue(PDA_DATA_TONAME, out string? receiverName) ||
                             !args.Data.TryGetValue(PDA_DATA_TOADDR, out string? recieverAddress) ||
                             !args.Data.TryGetValue(PDA_DATA_MSG, out string? messageContent) ||
@@ -443,11 +443,9 @@ namespace Content.Server.PDA
 
         private void UpdatePeers(EntityUid uid, PdaComponent pda, DeviceNetworkPacketEvent args)
         {
-            if (!args.Data.TryGetValue(PDA_DATA_PEER, out Dictionary<string, string>? pdaPeerData))
-            {
-                Logger.Info($"Updating Peers {pdaPeerData}");
+            if (!args.Data.TryGetValue(PDA_DATA_PEER, out List<KnownPda>? pdaPeerData))
                 return;
-            }
+
             pda.KnownPDAMessengers = pdaPeerData;
             UpdatePdaUi(uid, pda);
         }

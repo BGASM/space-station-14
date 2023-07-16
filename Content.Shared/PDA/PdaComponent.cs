@@ -73,7 +73,7 @@ namespace Content.Shared.PDA
         /// Known PDA messengers in network by address with messenger names
         /// </summary>
         [ViewVariables]
-        public Dictionary<string, string> KnownPDAMessengers { get; set; } = new();
+        public List<KnownPda> KnownPDAMessengers { get; set; } = new();
 
         /// <summary>
         /// Queue of the incoming message

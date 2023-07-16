@@ -19,7 +19,6 @@ namespace Content.Client.PDA
         [Dependency] private readonly IGameTiming _gameTiming = default!;
         [Dependency] private readonly IEntitySystemManager _entitySystem = default!;
         private readonly ClientGameTicker _gameTicker;
-        private PdaMessengerUiState _state;
 
         public const int HomeView = 0;
         public const int ProgramListView = 1;
@@ -30,22 +29,16 @@ namespace Content.Client.PDA
         public const int ConversationView = 5;
 
         private int _currentView;
-        // <------ PDA Messenger Tests------>
-        //private List<string> testRecipientList = new List<string> { "bob", "Mary", "Geraldo" };
-
         public event Action<EntityUid>? OnProgramItemPressed;
         public event Action<EntityUid>? OnUninstallButtonPressed;
         public event Action<EntityUid>? OnInstallButtonPressed;
-        public event Action<string>? OnSendMessageButtonPressed;
-
-        public event Action<List<PdaMessengerUiState.Recipient>>? OnNamePressed;
+        public event Action<List<KnownPda>, string>? OnSendMessageButtonPressed;
 
         public PdaMenu(PdaMessengerUiState state)
         {
             IoCManager.InjectDependencies(this);
             _gameTicker = _entitySystem.GetEntitySystem<ClientGameTicker>();
             RobustXamlLoader.Load(this);
-            _state = state;
 
             ViewContainer.OnChildAdded += control => control.Visible = false;
 
@@ -61,9 +54,7 @@ namespace Content.Client.PDA
             MessageButton.OnPressed += _ => ToMessageScreen();
             CreateMessageButton.OnPressed += _ => ToConversationScreen();
             MessageSendButton.OnPressed += _ => SendMessagePressed();
-            SelectRecipientButton.OnPressed += _ => OnSelectRecipientButtonPressed();
-
-
+            RxList.OnRxButtonToggled += () => RxListButtonPressed();
 
             ProgramListButton.OnPressed += _ =>
             {
@@ -120,6 +111,7 @@ namespace Content.Client.PDA
             }
 
 
+
             if (state.PdaOwnerInfo.IdOwner != null || state.PdaOwnerInfo.JobTitle != null)
             {
                 IdInfoLabel.SetMarkup(Loc.GetString("comp-pda-ui",
@@ -164,8 +156,6 @@ namespace Content.Client.PDA
 
             PopulateRecipientList(state.KnownPDAMessengers);
             PopulateConversations(state.ConversationList);
-
-
         }
 
         public void UpdateAvailablePrograms(List<(EntityUid, CartridgeComponent)> programs)
@@ -233,12 +223,13 @@ namespace Content.Client.PDA
 
         public void SendMessagePressed()
         {
-            if (_state.CurrentRecipients.Count < 1 || MessageInput.Text == "")
+            if (RxList.SelectedRecipientList.Count < 1 || MessageInput.Text == "")
                 return;
-            OnSendMessageButtonPressed?.Invoke( MessageInput.Text);
-            RecipientList.RemoveAllChildren();
-            MessageInput.Clear();
+
+            OnSendMessageButtonPressed?.Invoke(RxList.SelectedRecipientList, MessageInput.Text);
             ToHomeScreen();
+            RxList.Clear();
+            MessageInput.Clear();
         }
 
 
@@ -279,53 +270,10 @@ namespace Content.Client.PDA
             ChangeView(ConversationView);
         }
 
-        public void PopulateRecipientList(Dictionary<string, string> recipientList)
+        public void PopulateRecipientList(List<KnownPda> recipientList)
         {
-            if (!RxCollapsibleBody.Visible)
-                return;
-            RecipientList.RemoveAllChildren();
-            _state.checkList.Clear();
-
-            foreach (var recipient in recipientList)
-            {
-                var row = new BoxContainer();
-                row.HorizontalExpand = true;
-                row.Margin = new Thickness(4);
-
-                var check = new CheckBox();
-                check.HorizontalExpand = true;
-                check.Name = recipient.Key;
-                check.Label.Text = recipient.Value;
-                check.OnToggled += _ =>
-                {
-                    if (_state.checkList.Contains(check))
-                    {
-                        _state.checkList.Remove(check);
-                    }
-                    else
-                    {
-                        _state.checkList.Add(check);
-                    }
-                };
-
-                row.AddChild(check);
-                RecipientList.AddChild(row);
-            }
-
-        }
-
-
-        public void OnSelectRecipientButtonPressed()
-        {
-            List<PdaMessengerUiState.Recipient> recipients = new List<PdaMessengerUiState.Recipient>();
-            foreach (CheckBox check in _state.checkList)
-            {
-                if (check.Text == null || check.Name == null)
-                    return;
-                recipients.Add(new PdaMessengerUiState.Recipient(check.Text, check.Name));
-            }
-
-            OnNamePressed?.Invoke(recipients);
+            RxList.Clear();
+            RxList.AddRecipientList(recipientList);
         }
 
         public void PopulateConversations(List<PdaConversation> conversations)
@@ -341,16 +289,9 @@ namespace Content.Client.PDA
             }
         }
 
-        public void UpdateRecipient()
+        public void RxListButtonPressed()
         {
-            RxCollapsibleBody.Visible = !RxCollapsibleBody.Visible;
-            //Adressees.RemoveAllChildren();
-            foreach (PdaMessengerUiState.Recipient recipient in _state.CurrentRecipients)
-            {
-                var label = new Label();
-                label.Text = recipient.Name;
-                Adressees.AddChild(label);
-            }
+            Addressees.PopulateRecipients(RxList.SelectedRecipientList);
         }
 
         public void AddPdaMessage(PdaConversation conversation)
@@ -444,6 +385,7 @@ namespace Content.Client.PDA
             ViewContainer.GetChild(_currentView).Visible = false;
             ViewContainer.GetChild(view).Visible = true;
             _currentView = view;
+            RxList._frozen = (_currentView == ConversationView);
         }
 
         private static BoxContainer CreateProgramListRow()

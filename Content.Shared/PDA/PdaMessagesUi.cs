@@ -51,13 +51,13 @@ public sealed class PdaMessage : BoundUserInterfaceMessage
     public DateTime SentAt { get; }
     public string SenderName { get; }
     public string SenderAddress { get; }
-    public List<Recipient> RecipientList { get; }
+    public List<KnownPda> RecipientList { get; }
     public string ReceiverName { get; }
     public string ReceiverAddress { get; }
     public string Message { get; }
 
     public PdaMessage(
-        List<Recipient> recipientList,
+        List<KnownPda> recipientList,
         string receiverName,
         string receiverAddress,
         string message,
@@ -78,11 +78,11 @@ public sealed class PdaMessage : BoundUserInterfaceMessage
 [Serializable, NetSerializable]
 public sealed class PdaConversation
 {
-    public List<Recipient> RecipientList { get; }
+    public List<KnownPda> RecipientList { get; }
     public List<MessageMeta> MessageList { get; }
     public string ConversationId { get; }
 
-    public PdaConversation(List<Recipient> recipientList, List<MessageMeta> messageList)
+    public PdaConversation(List<KnownPda> recipientList, List<MessageMeta> messageList)
     {
         RecipientList = recipientList;
         MessageList = messageList;
