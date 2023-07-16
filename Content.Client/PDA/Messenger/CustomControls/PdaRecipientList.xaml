@@ -1,0 +1,16 @@
+﻿<pda:PdaRecipientList HorizontalExpand="True" MinHeight="60" Margin="4"
+                    xmlns:pda="clr-namespace:Content.Client.PDA.Messenger.CustomControls"
+                    xmlns="https://spacestation14.io">
+    <PanelContainer Name="Panel"/>
+    <BoxContainer Orientation="Vertical" VerticalExpand="True" HorizontalExpand="True">
+        <ScrollContainer HorizontalExpand="True" VerticalExpand="True">
+            <BoxContainer Name="RecipientList"
+                          Access="Public"
+                          Orientation="Vertical"
+                          HorizontalExpand="True"
+                          VerticalExpand="True"
+                          VerticalAlignment="Top"
+                          Margin="3 0"/>
+        </ScrollContainer>
+    </BoxContainer>
+</pda:PdaRecipientList>

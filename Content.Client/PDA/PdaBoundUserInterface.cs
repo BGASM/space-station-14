@@ -82,7 +82,7 @@ namespace Content.Client.PDA
             _menu.OnProgramItemPressed += ActivateCartridge;
             _menu.OnInstallButtonPressed += InstallCartridge;
             _menu.OnUninstallButtonPressed += UninstallCartridge;
-            _menu.OnNamePressed += NamePressed;
+
             _menu.OnSendMessageButtonPressed += SendMessagePressed;
             _menu.ProgramCloseButton.OnPressed += _ => DeactivateActiveCartridge();
 
@@ -95,15 +95,11 @@ namespace Content.Client.PDA
             _menu.AccentVColor = borderColorComponent.AccentVColor;
         }
 
-        private void SendMessagePressed(string message)
+        private void SendMessagePressed(List<KnownPda> pdas, string message)
         {
-            _state.OutgoingMessage = message;
-            var recipientList = _state.CurrentRecipients
-                .Select(recipient => new Recipient(recipient.Name, recipient.Address)).ToList();
-
-            foreach (var recipient in _state.CurrentRecipients)
+            foreach (var recipient in pdas)
             {
-                SendMessage(new PdaMessage(recipientList, recipient.Name, recipient.Address, message));
+                SendMessage(new PdaMessage(pdas, recipient.Name, recipient.Address, message));
             }
         }
 
@@ -146,15 +142,6 @@ namespace Content.Client.PDA
                 return;
 
             _menu?.Dispose();
-        }
-
-        public void NamePressed(List<PdaMessengerUiState.Recipient> recipients)
-        {
-            //Log.Debug($"Passed {contactInfo}");
-            _state.CurrentRecipients.Clear();
-            _state.CurrentRecipients = recipients;
-
-            _menu?.UpdateRecipient();
         }
 
         private PdaBorderColorComponent? GetBorderColorComponent()

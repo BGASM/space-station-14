@@ -1,6 +1,7 @@
 ﻿<pda:PdaWindow  xmlns="https://spacestation14.io"
                 xmlns:pda="clr-namespace:Content.Client.PDA"
                 xmlns:controls="clr-namespace:Content.Client.UserInterface.Controls"
+                xmlns:rx="clr-namespace:Content.Client.PDA.Messenger.CustomControls"
                 MinSize="576 450"
                 SetSize="576 450">
     <!-- This: (Margin="1 1 3 0") is necessary so the navigation bar doesn't sticks into the black content border. -->
@@ -23,6 +24,7 @@
         <pda:PdaNavigationButton Name="EjectIdButton" Access="Public" SetWidth="32"/>
     </BoxContainer>
     <BoxContainer Name="ViewContainer" HorizontalExpand="True" VerticalExpand="True" Access="Public">
+
         <!-- 0 -->
         <BoxContainer Orientation="Vertical"
                       VerticalExpand="True"
@@ -91,31 +93,41 @@
                       Access="Public">
         </BoxContainer>
         <!-- 4 -->
-        <BoxContainer Orientation="Vertical" HorizontalExpand="True" VerticalExpand="True">
-            <Button Name="CreateMessageButton" Text="Create New Message" HorizontalExpand="True" SetHeight="32" />
+        <BoxContainer Orientation="Vertical"
+                      HorizontalExpand="True"
+                      VerticalExpand="True">
+            <Button Name="CreateMessageButton"
+                    Text="Create New Message"
+                    HorizontalExpand="True"
+                    SetHeight="32" />
             <ScrollContainer Name="ConversationScrollContainer" HorizontalExpand="True" VerticalExpand="True">
                 <BoxContainer Orientation="Vertical" Name="ConversationContainer" HorizontalExpand="True" VerticalExpand="True" VerticalAlignment="Top" Margin="3 0"/>
             </ScrollContainer>
         </BoxContainer>
         <!-- 5 -->
-        <BoxContainer Orientation="Vertical" HorizontalExpand="True" VerticalExpand="True">
-            <Button HorizontalExpand="True" Name="SelectRecipientButton" VerticalExpand="False" SetHeight="32" Text="^"/>
-            <Collapsible Name="RecipientCollapsible" Orientation="Vertical" HorizontalExpand="True" VerticalExpand="True">
-                <CollapsibleHeading Name="RxCollapsibleHeading" Access="Public" Title="Recipient" SetHeight="32" />
-                <CollapsibleBody Name="RxCollapsibleBody" VerticalExpand="True">
-                    <ScrollContainer HorizontalExpand="True" VerticalExpand="True">
-                        <BoxContainer Orientation="Vertical" Name="RecipientList" HorizontalExpand="True" VerticalExpand="True" VerticalAlignment="Top" Margin="3 0"/>
-                    </ScrollContainer>
-                </CollapsibleBody>
-            </Collapsible>
-            <ScrollContainer HorizontalExpand="True" VerticalExpand="True">
-                <BoxContainer Orientation="Vertical" Name="ConversationMessageContainer" HorizontalExpand="True" VerticalExpand="True" VerticalAlignment="Top" Margin="3 0"/>
-            </ScrollContainer>
-            <BoxContainer Orientation="Horizontal" HorizontalExpand="True" SetHeight="32" Name="Adressees"/>
-            <BoxContainer Orientation="Horizontal" HorizontalExpand="True">
-                <LineEdit Name="MessageInput" HorizontalExpand="True" SetHeight="32"/>
-                <Button Name="MessageSendButton" Text="Send"/>
-            </BoxContainer>
+        <BoxContainer Name="MessageCreateBox" Orientation="Vertical" HorizontalExpand="True" VerticalExpand="True">
+            <SplitContainer Orientation="Horizontal" HorizontalExpand="True" VerticalExpand="True">
+                <rx:PdaRecipientList Name="RxList"/>
+                <BoxContainer Orientation="Vertical"
+                              HorizontalExpand="True"
+                              VerticalExpand="True">
+
+                        <BoxContainer Orientation="Vertical"
+                                      HorizontalExpand="True"
+                                      VerticalExpand="True">
+                            <rx:PdaRecipientNameSection Name="Addressees"/>
+                        </BoxContainer>
+                        <BoxContainer Orientation="Horizontal"
+                                      HorizontalExpand="True"
+                                      SetHeight="32">
+                            <LineEdit Name="MessageInput"
+                                      HorizontalExpand="True"/>
+                            <Button Name="MessageSendButton"
+                                    Text="Send"/>
+                        </BoxContainer>
+
+                </BoxContainer>
+            </SplitContainer>
         </BoxContainer>
 
     </BoxContainer>

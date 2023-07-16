@@ -10,7 +10,7 @@ public sealed class PdaMessageServerComponent : Component
     /// Known PDA messengers in network by address with messenger names
     /// </summary>
     [ViewVariables]
-    public Dictionary<string, string> KnownPDAMessengers = new();
+    public List<KnownPda> KnownPDAMessengers = new();
 
     /// <summary>
     ///     Whether the server can become the currently active server. The server being unavailable usually means that it isn't powered
