@@ -1,5 +1,6 @@
 using System.Linq;
 using Content.Client.CartridgeLoader;
+using Content.Client.PDA.Messenger;
 using Content.Shared.CartridgeLoader;
 using Content.Shared.CCVar;
 using Content.Shared.Containers.ItemSlots;
@@ -8,6 +9,7 @@ using Content.Shared.PDA;
 using JetBrains.Annotations;
 using Robust.Client.UserInterface;
 using Robust.Shared.Configuration;
+//using Serilog;
 
 namespace Content.Client.PDA
 {
@@ -19,6 +21,8 @@ namespace Content.Client.PDA
         [ViewVariables]
         private PdaMenu? _menu;
 
+        private PdaMessengerUiState _state = new PdaMessengerUiState();
+
         public PdaBoundUserInterface(EntityUid owner, Enum uiKey) : base(owner, uiKey)
         {
         }
@@ -27,7 +31,7 @@ namespace Content.Client.PDA
         {
             base.Open();
             SendMessage(new PdaRequestUpdateInterfaceMessage());
-            _menu = new PdaMenu();
+            _menu = new PdaMenu(_state);
             _menu.OpenCenteredLeft();
             _menu.OnClose += Close;
             _menu.FlashLightToggleButton.OnToggled += _ =>
@@ -74,15 +78,13 @@ namespace Content.Client.PDA
                 SendMessage(new PdaLockUplinkMessage());
             };
 
+
             _menu.OnProgramItemPressed += ActivateCartridge;
             _menu.OnInstallButtonPressed += InstallCartridge;
             _menu.OnUninstallButtonPressed += UninstallCartridge;
             _menu.OnNamePressed += NamePressed;
+            _menu.OnSendMessageButtonPressed += SendMessagePressed;
             _menu.ProgramCloseButton.OnPressed += _ => DeactivateActiveCartridge();
-            _menu.RxCollapsibleHeading.OnToggled += _ =>
-            {
-                SendMessage(new PdaRefreshMessage());
-            };
 
             var borderColorComponent = GetBorderColorComponent();
             if (borderColorComponent == null)
@@ -91,6 +93,18 @@ namespace Content.Client.PDA
             _menu.BorderColor = borderColorComponent.BorderColor;
             _menu.AccentHColor = borderColorComponent.AccentHColor;
             _menu.AccentVColor = borderColorComponent.AccentVColor;
+        }
+
+        private void SendMessagePressed(string message)
+        {
+            _state.OutgoingMessage = message;
+            var recipientList = _state.CurrentRecipients
+                .Select(recipient => new Recipient(recipient.Name, recipient.Address)).ToList();
+
+            foreach (var recipient in _state.CurrentRecipients)
+            {
+                SendMessage(new PdaMessage(recipientList, recipient.Name, recipient.Address, message));
+            }
         }
 
         protected override void UpdateState(BoundUserInterfaceState state)
@@ -134,16 +148,13 @@ namespace Content.Client.PDA
             _menu?.Dispose();
         }
 
-        public void NamePressed(Dictionary<string, string> contactInfo)
+        public void NamePressed(List<PdaMessengerUiState.Recipient> recipients)
         {
-            var ContactInfo = contactInfo.First();
-            Logger.Info($"In NamePressed - {ContactInfo.Key} - {ContactInfo.Value}");
-            _menu?.UpdateRecipient(ContactInfo.Key, ContactInfo.Value);
-        }
+            //Log.Debug($"Passed {contactInfo}");
+            _state.CurrentRecipients.Clear();
+            _state.CurrentRecipients = recipients;
 
-        public void Send(string senderName, string receiverName, string message)
-        {
-            SendMessage(new PdaTextMessage(senderName, receiverName, message));
+            _menu?.UpdateRecipient();
         }
 
         private PdaBorderColorComponent? GetBorderColorComponent()

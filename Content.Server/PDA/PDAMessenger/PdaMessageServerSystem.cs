@@ -3,6 +3,7 @@ using Content.Server.DeviceNetwork.Components;
 using Content.Server.DeviceNetwork.Systems;
 using Content.Server.Power.Components;
 using Content.Server.Station.Systems;
+using Content.Shared.PDA;
 
 
 namespace Content.Server.PDA.PDAMessenger;
@@ -13,14 +14,18 @@ public sealed class PdaMessageServerSystem : EntitySystem
     [Dependency] private readonly DeviceNetworkSystem _deviceNetworkSystem = default!;
     [Dependency] private readonly StationSystem _stationSystem = default!;
 
-    public const string PDA_CMD_PING = "pda_messenger_ping";
-    public const string PDA_CMD_PONG = "pda_messenger_pong";
-    public const string PDA_CMD_TX = "pda_messenger_tx";
-    public const string PDA_CMD_NAME = "pda_messenger_data_name";
-    public const string PDA_CMD_MSG = "pda_messenger_message_data";
-    public const string PDA_CMD_PEER = "pda_messenger_peer_message";
-    public const string PDA_PEER_MSG = "pda_messenger_peer_data";
-    public const string PDA_CMD_TOADDR = "pda_messenger_txaddress_data";
+    public const string PDA_CMD_PING = "pda_messenger_ping_command";
+    public const string PDA_CMD_PONG = "pda_messenger_pong_command";
+    public const string PDA_CMD_TX = "pda_messenger_tx_command";
+    public const string PDA_CMD_PEER = "pda_messenger_peer_command";
+    public const string PDA_DATA_FRNAME = "pda_messenger_fromname_data";
+    public const string PDA_DATA_FRADDR = "pda_messenger_fromaddr_data";
+    public const string PDA_DATA_RXLIST = "pda_messenger_recipient_list_data";
+    public const string PDA_DATA_TONAME = "pda_messenger_recipient_name_data";
+    public const string PDA_DATA_MSG = "pda_messenger_message_data";
+    public const string PDA_DATA_PEER = "pda_messenger_peer_data";
+    public const string PDA_DATA_TOADDR = "pda_messenger_txaddress_data";
+    public const string PDA_DATA_TIME = "pda_messenger_time_data";
     public const string PDA_FROM_NAME = "FromName";
     public const string PDA_FROM_ADDR = "FromAddress";
     public const string PDA_MSG_CONT = "Content";
@@ -71,7 +76,7 @@ public sealed class PdaMessageServerSystem : EntitySystem
         foreach (var activeServer in activeServers)
         {
             PingAllPda(activeServer);
-            //ProcessMessageQueue(activeServer);
+            ProcessMessageQueue(activeServer);
         }
     }
 
@@ -87,76 +92,66 @@ public sealed class PdaMessageServerSystem : EntitySystem
         }
     }
 
-    private void TransmitMessage(EntityUid uid, PdaMessageServerComponent component, DeviceNetworkComponent device, Dictionary<string, string> message)
+    private void TransmitMessage(EntityUid uid, PdaMessageServerComponent component, DeviceNetworkComponent device, PdaMessage message)
     {
         var freq = device.TransmitFrequency;
-
-        if (!message.TryGetValue(PDA_TO_ADDR, out string? toAddress) ||
-            !message.TryGetValue(PDA_FROM_ADDR, out string? fromAddress) ||
-            !message.TryGetValue(PDA_FROM_NAME, out string? fromName)||
-            !message.TryGetValue(PDA_MSG_CONT, out string? content))
-            return;
 
         var payload = new NetworkPayload()
         {
             [DeviceNetworkConstants.Command] = PDA_CMD_TX,
-            [PDA_TO_ADDR] = toAddress,
-            [PDA_FROM_ADDR] = fromAddress,
-            [PDA_FROM_NAME] = fromName,
-            [PDA_MSG_CONT] = content,
+            [PDA_DATA_RXLIST] = message.RecipientList,
+            [PDA_DATA_TONAME] = message.ReceiverName,
+            [PDA_DATA_TOADDR] = message.ReceiverAddress,
+            [PDA_DATA_MSG] = message.Message,
+            [PDA_DATA_TIME] = message.SentAt,
+            [PDA_DATA_FRNAME] = message.SenderName,
+            [PDA_DATA_FRADDR] = message.SenderAddress,
         };
 
-        _deviceNetworkSystem.QueuePacket(uid, toAddress, payload, freq, device: device);
+        _deviceNetworkSystem.QueuePacket(uid, message.ReceiverAddress, payload, freq, device: device);
     }
 
     private void OnPacketReceived(EntityUid uid, PdaMessageServerComponent component, DeviceNetworkPacketEvent args)
     {
-        Logger.Debug($"In PDAServer OnPacketReceived Call.");
-
         if (!HasComp<DeviceNetworkComponent>(uid) || string.IsNullOrEmpty(args.SenderAddress))
             return;
 
         if (args.Data.TryGetValue(DeviceNetworkConstants.Command, out string? command))
         {
-            Logger.Info($"In PDAServer OnPacketReceived Call. - {command}");
             switch (command)
             {
                 case PDA_CMD_PING: //Pda sends ping to server, respond with KnownPDAMessengers
                     var payload = new NetworkPayload()
                     {
                         { DeviceNetworkConstants.Command, PDA_CMD_PEER },
-                        { PDA_PEER_MSG, component.KnownPDAMessengers }
+                        { PDA_DATA_PEER, component.KnownPDAMessengers }
                     };
-                    Logger.Info($"In server PING, sending known pdas. - {component.KnownPDAMessengers}");
+
                     _deviceNetworkSystem.QueuePacket(uid, args.SenderAddress, payload);
 
                     break;
 
                 case PDA_CMD_PONG: //Pda pongs server, add name and address to KnownPDAMessengers
-
-                    if (!args.Data.TryGetValue(PDA_CMD_NAME, out string? pdaOwnerName))
-                    {
-                        Logger.Info($"In PONG 1. - {pdaOwnerName}");
+                    if (!args.Data.TryGetValue(PDA_DATA_FRNAME, out string? pdaOwnerName))
                         return;
-                    }
 
                     component.KnownPDAMessengers[args.SenderAddress] = pdaOwnerName;
-                    Logger.Info($"In PONG 2. - {component.KnownPDAMessengers.ToString()}");
+
                     break;
 
                 case PDA_CMD_TX: //PDA sends TX message to server, add message to Queue
-                    if (!args.Data.TryGetValue(PDA_CMD_NAME, out string? name) ||
-                        !args.Data.TryGetValue(PDA_CMD_MSG, out string? content) ||
-                        !args.Data.TryGetValue(PDA_CMD_TOADDR, out string? toAddress))
+                    Logger.Debug($"Made it to server.");
+                    if (!args.Data.TryGetValue(PDA_DATA_RXLIST, out List<Recipient>? recipientList) ||
+                        !args.Data.TryGetValue(PDA_DATA_TONAME, out string? receiverName) ||
+                        !args.Data.TryGetValue(PDA_DATA_TOADDR, out string? recieverAddress) ||
+                        !args.Data.TryGetValue(PDA_DATA_MSG, out string? messageContent) ||
+                        !args.Data.TryGetValue(PDA_DATA_TIME, out DateTime? sentAt) ||
+                        !args.Data.TryGetValue(PDA_DATA_FRNAME, out string? senderName))
                         return;
 
-                    var message = new Dictionary<string, string>()
-                        {
-                            { PDA_TO_ADDR, toAddress },
-                            { PDA_FROM_ADDR, args.SenderAddress},
-                            { PDA_FROM_NAME, name },
-                            { PDA_MSG_CONT, content }
-                        };
+
+                    var message = new PdaMessage(recipientList, receiverName, recieverAddress, messageContent, sentAt, senderName, args.SenderAddress );
+
                     Receive(uid, message);
 
                     break;
@@ -164,7 +159,7 @@ public sealed class PdaMessageServerSystem : EntitySystem
         }
     }
 
-    private void Receive(EntityUid uid, Dictionary<string,string> message, PdaMessageServerComponent? component = null)
+    private void Receive(EntityUid uid, PdaMessage message, PdaMessageServerComponent? component = null)
     {
         if (!Resolve(uid, ref component))
             return;
@@ -182,7 +177,6 @@ public sealed class PdaMessageServerSystem : EntitySystem
             [DeviceNetworkConstants.Command] = PDA_CMD_PING
         };
 
-        Logger.Info($"Pinging All PDAS on freq: {device.TransmitFrequency}");
         _deviceNetworkSystem.QueuePacket(uid, null, payload, device.TransmitFrequency, device: device);
     }
 
@@ -246,17 +240,14 @@ public sealed class PdaMessageServerSystem : EntitySystem
     }
     private void ConnectServer(EntityUid uid, PdaMessageServerComponent? server = null, DeviceNetworkComponent? device = null)
     {
-        Logger.Info($"Server trying to connect");
         if (!Resolve(uid, ref server, ref device))
             return;
 
         server.Active = true;
-        Logger.Info($"Server successfully connected! {device.DeviceNetId} - {device.ReceiveFrequency}");
 
         if (_deviceNetworkSystem.IsDeviceConnected(uid, device))
             return;
 
-        Logger.Info($"Server successfully connected! {device.DeviceNetId} - {device.ReceiveFrequency}");
         _deviceNetworkSystem.ConnectDevice(uid, device);
         PingAllPda(uid, server, device);
     }

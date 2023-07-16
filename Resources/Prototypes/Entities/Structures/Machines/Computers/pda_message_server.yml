@@ -27,9 +27,9 @@
       transmitFrequency: 7981
       receiveFrequency: 7982
       autoConnect: true
+      receiveAll: true
     - type: WirelessNetworkConnection
-      range: 500
-    - type: StationLimitedNetwork
+      range: 1000
     - type: ApcPowerReceiver
       powerLoad: 200
       priority: Low

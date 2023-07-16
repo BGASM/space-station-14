@@ -80,25 +80,25 @@ namespace Content.Shared.PDA
         /// </summary>
         [ViewVariables]
         [DataField("messageQueue")]
-        public Queue<Dictionary<string,string>> MessageQueue { get; } = new();
+        public Queue<PdaMessage> MessageQueue { get; } = new();
 
         /// <summary>
         /// Queue of the incoming message
         /// </summary>
         [ViewVariables]
         [DataField("messageList")]
-        public List<Dictionary<string,string>> MessageList { get; } = new();
+        public List<PdaConversation> ConversationList { get; } = new();
 
         /// <summary>
         /// Remaining time of message dequeue
         /// </summary>
         [DataField("messageDownloadTimeRemaining")]
-        public float MessageDLTimeRemaining;
+        public float MessageDLTimeRemaining = 0.05f;
 
         /// <summary>
         /// How long it takes message download
         /// </summary>
         [ViewVariables]
-        public float MessageDLTime = 0.3f;
+        public float MessageDLTime = 0.02f;
     }
 }

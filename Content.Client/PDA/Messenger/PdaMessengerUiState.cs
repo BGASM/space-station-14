@@ -1,52 +1,31 @@
 ﻿using System.Linq;
+using Content.Shared.PDA;
+using Robust.Client.UserInterface.Controls;
 
 namespace Content.Client.PDA.Messenger;
 
 public sealed class PdaMessengerUiState : BoundUserInterfaceState
 {
     public List<PdaConversation> PdaConversations;
+    public List<Recipient> CurrentRecipients;
+    public string OutgoingMessage;
+    public List<CheckBox> checkList = new List<CheckBox>();
 
-    public PdaMessengerUiState(List<PdaConversation> pdaConversations)
+    public PdaMessengerUiState()
     {
-        PdaConversations = pdaConversations;
+        PdaConversations = new List<PdaConversation>();
+        CurrentRecipients = new List<Recipient>();
+        OutgoingMessage = "";
     }
-
-    public PdaConversation? getConversation(string name)
-    {
-        return PdaConversations.First(f => f.Name == name);
-    }
-
-    public sealed class PdaMessage
-    {
-        public string Name;
-        public string Message;
-
-        public PdaMessage(string name, string message)
-        {
-            Name = name;
-            Message = message;
-        }
-    }
-
-    public sealed class PdaConversation
+    public sealed class Recipient
     {
         public string Name;
-        public List<string> Messages;
-        public string LastMessage { get; set; }
+        public string Address;
 
-        public PdaConversation(string name, string message)
+        public Recipient(string name, string address)
         {
             Name = name;
-            Messages = new List<string>() { message };
-            LastMessage = message;
-        }
-
-        public PdaConversation(PdaMessage message)
-        {
-            Name = message.Name;
-            Messages = new List<string>() { message.Message };
-            LastMessage = message.Message;
+            Address = address;
         }
     }
-
 }

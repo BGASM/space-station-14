@@ -21,6 +21,7 @@ using Robust.Shared.Containers;
 using Content.Shared.Light.Component;
 using Content.Shared.Mobs;
 using Robust.Shared.Timing;
+using System.Linq;
 
 namespace Content.Server.PDA
 {
@@ -41,14 +42,18 @@ namespace Content.Server.PDA
         [Dependency] private readonly StationSystem _stationSystem = default!;
 
         // String constants identical with PdaMessagerSystem. Will move to static class
-        public const string PDA_CMD_PING = "pda_messenger_ping";
-        public const string PDA_CMD_PONG = "pda_messenger_pong";
-        public const string PDA_CMD_TX = "pda_messenger_tx";
-        public const string PDA_CMD_NAME = "pda_messenger_data_name";
-        public const string PDA_CMD_MSG = "pda_messenger_message_data";
-        public const string PDA_CMD_PEER = "pda_messenger_peer_message";
-        public const string PDA_PEER_MSG = "pda_messenger_peer_data";
-        public const string PDA_CMD_TOADDR = "pda_messenger_txaddress_data";
+        public const string PDA_CMD_PING = "pda_messenger_ping_command";
+        public const string PDA_CMD_PONG = "pda_messenger_pong_command";
+        public const string PDA_CMD_TX = "pda_messenger_tx_command";
+        public const string PDA_CMD_PEER = "pda_messenger_peer_command";
+        public const string PDA_DATA_FRNAME = "pda_messenger_fromname_data";
+        public const string PDA_DATA_FRADDR = "pda_messenger_fromaddr_data";
+        public const string PDA_DATA_RXLIST = "pda_messenger_recipient_list_data";
+        public const string PDA_DATA_TONAME = "pda_messenger_recipient_name_data";
+        public const string PDA_DATA_MSG = "pda_messenger_message_data";
+        public const string PDA_DATA_PEER = "pda_messenger_peer_data";
+        public const string PDA_DATA_TOADDR = "pda_messenger_txaddress_data";
+        public const string PDA_DATA_TIME = "pda_messenger_time_data";
         public const string PDA_FROM_NAME = "FromName";
         public const string PDA_FROM_ADDR = "FromAddress";
         public const string PDA_MSG_CONT = "Content";
@@ -70,7 +75,7 @@ namespace Content.Server.PDA
             SubscribeLocalEvent<PdaComponent, PdaShowUplinkMessage>(OnUiMessage);
             SubscribeLocalEvent<PdaComponent, PdaLockUplinkMessage>(OnUiMessage);
             SubscribeLocalEvent<PdaComponent, PdaRefreshMessage>(OnRefreshMessage);
-            SubscribeLocalEvent<PdaComponent, PdaTextMessage>(OnSendMessage);
+            SubscribeLocalEvent<PdaComponent, PdaMessage>(OnSendMessage);
 
             SubscribeLocalEvent<StationRenamedEvent>(OnStationRenamed);
             SubscribeLocalEvent<AlertLevelChangedEvent>(OnAlertLevelChanged);
@@ -220,9 +225,10 @@ namespace Content.Server.PDA
         {
             Refresh(uid, pda);
         }
-        private void OnSendMessage(EntityUid uid, PdaComponent pda,  PdaTextMessage args)
+        private void OnSendMessage(EntityUid uid, PdaComponent pda,  PdaMessage args)
         {
-            Send(uid, pda, args.SenderName, args.Message );
+            Logger.Debug($"Name - {args.RecipientList.First().Name} Address - {args.RecipientList.First().Address}");
+            Send(uid, pda, args);
         }
         private void OnPacketReceived(EntityUid uid, PdaComponent pda, DeviceNetworkPacketEvent args)
         {
@@ -242,12 +248,17 @@ namespace Content.Server.PDA
                         break;
 
                     case PDA_CMD_TX: // PDA server sends messages to download
-                        if (!args.Data.TryGetValue(PDA_CMD_NAME, out string? name) ||
-                            !args.Data.TryGetValue(PDA_CMD_MSG, out string? content))
+                        Logger.Debug($"Made it back to the PDA.");
+                        if (!args.Data.TryGetValue(PDA_DATA_RXLIST, out List<Recipient>? recipientList) ||
+                            !args.Data.TryGetValue(PDA_DATA_TONAME, out string? receiverName) ||
+                            !args.Data.TryGetValue(PDA_DATA_TOADDR, out string? recieverAddress) ||
+                            !args.Data.TryGetValue(PDA_DATA_MSG, out string? messageContent) ||
+                            !args.Data.TryGetValue(PDA_DATA_TIME, out DateTime? sentAt) ||
+                            !args.Data.TryGetValue(PDA_DATA_FRNAME, out string? senderName))
                             return;
 
-                        var message = new Dictionary<string, string>() {{"Name", name}, {"Content", content}} ;
-                        Receive(uid, message, args.SenderAddress);
+                        var message = new PdaMessage(recipientList, receiverName, recieverAddress, messageContent, sentAt, senderName, args.SenderAddress );
+                        Receive(uid, message);
 
                         break;
                 }
@@ -309,7 +320,7 @@ namespace Content.Server.PDA
             var payload = new NetworkPayload()
             {
                 [DeviceNetworkConstants.Command] = PDA_CMD_PONG,
-                [PDA_CMD_NAME] = pda.OwnerName
+                [PDA_DATA_FRNAME] = pda.OwnerName
             };
             return payload;
         }
@@ -367,7 +378,7 @@ namespace Content.Server.PDA
                 showUplink,
                 hasInstrument,
                 address,
-                pda.MessageList,
+                pda.ConversationList,
                 pda.KnownPDAMessengers);
 
             _cartridgeLoader?.UpdateUiState(uid, state);
@@ -402,7 +413,7 @@ namespace Content.Server.PDA
 
             var freq = device.TransmitFrequency;
 
-            if (pda.OwnerName == null || freq == null || device == null)
+            if (pda.OwnerName == null || pda.OwnerName == "Unknown" || freq == null || device == null)
                 return;
 
             var payload = PdaPingPacket(pda);
@@ -417,14 +428,12 @@ namespace Content.Server.PDA
 
             var freq = device.TransmitFrequency;
 
-            if (pda.OwnerName == null || freq == null || device == null)
+            if (pda.OwnerName == null || pda.OwnerName == "Unknown" || freq == null || device == null)
                 return;
 
             var payload = PdaPongPacket(pda);
-            Logger.Debug($"Ponging Address: {pda.ConnectedServer} on {freq}");
 
             _deviceNetworkSystem.QueuePacket(uid, pda.ConnectedServer, payload, freq);
-            //_deviceNetworkSystem.QueuePacket(uid, null, payload, null);
         }
 
         private void Refresh(EntityUid uid, PdaComponent pda)
@@ -434,7 +443,7 @@ namespace Content.Server.PDA
 
         private void UpdatePeers(EntityUid uid, PdaComponent pda, DeviceNetworkPacketEvent args)
         {
-            if (!args.Data.TryGetValue(PDA_PEER_MSG, out Dictionary<string, string>? pdaPeerData))
+            if (!args.Data.TryGetValue(PDA_DATA_PEER, out Dictionary<string, string>? pdaPeerData))
             {
                 Logger.Info($"Updating Peers {pdaPeerData}");
                 return;
@@ -443,15 +452,12 @@ namespace Content.Server.PDA
             UpdatePdaUi(uid, pda);
         }
 
-        private void Receive(EntityUid uid, Dictionary<string,string> message, string? fromAddress = null, PdaComponent? pda = null)
+        private void Receive(EntityUid uid, PdaMessage message, PdaComponent? pda = null)
         {
             if (!Resolve(uid, ref pda))
                 return;
 
-            var PdaName = Loc.GetString("fax-machine-popup-source-unknown");
-            if (fromAddress != null && pda.KnownPDAMessengers.TryGetValue(fromAddress, out var pdaName)) // If message received from unknown fax address
-                PdaName = pdaName;
-
+            Logger.Debug($"Made it to the Receive function on PDA.");
             pda.MessageQueue.Enqueue(message);
         }
 
@@ -460,55 +466,77 @@ namespace Content.Server.PDA
             if (!Resolve(uid, ref pda) || pda.MessageQueue.Count == 0)
                 return;
 
-            var message = pda.MessageQueue.Dequeue();
+            while (pda.MessageQueue.Any())
+            {
+                var message = pda.MessageQueue.Dequeue();
+                var messageMeta = new MessageMeta(message.Message, message.SentAt, message.SenderName);
 
-            pda.MessageList.Add(message);
+                // This Linq expression should check if any conversations already exist with the same recipients, and then
+                // add the message to that conversation. If no matches exist, create a new conversation and a new message
+                // list.
+                var existingConversation = pda.ConversationList.FirstOrDefault(
+                    m => m.RecipientList.Count == message.RecipientList.Count
+                         && m.RecipientList.All(r => message.RecipientList.Any(mr => mr.Name == r.Name))
+                         && m.RecipientList.All(r => message.RecipientList.Any(mr => mr.Address == r.Address)));
+
+                if (existingConversation != null)
+                {
+                    existingConversation.MessageList.Add(messageMeta);
+                    Logger.Debug($"Made Message Spawn Known");
+                }
+                else
+                {
+                    pda.ConversationList.Add(
+                        new PdaConversation(
+                            message.RecipientList,
+                            new List<MessageMeta>{messageMeta}));
+                    Logger.Debug($"Made Message Spawn Unknown");
+                }
+            }
             UpdatePdaUi(uid, pda);
-
         }
 
-        public void Send(EntityUid uid, PdaComponent? pda = null, string? toAddress = null, string? message = null)
+        public void Send(EntityUid uid, PdaComponent? pda = null, PdaMessage? args = null)
         {
             if (!Resolve(uid, ref pda))
                 return;
 
-            if (toAddress == null)
-                return;
-
-            if (!pda.KnownPDAMessengers.TryGetValue(toAddress, out var pdaName))
-                return;
-
-            if (message == null)
-                return;
-            if (pda.OwnerName == null)
+            if (args == null)
                 return;
 
             var payload = new NetworkPayload()
             {
-                { DeviceNetworkConstants.Command, PDA_CMD_TX },
-                { PDA_CMD_NAME, pda.OwnerName },
-                { PDA_CMD_MSG, message },
-                { PDA_CMD_TOADDR, toAddress}
+                [DeviceNetworkConstants.Command] = PDA_CMD_TX ,
+                [PDA_DATA_RXLIST] = args.RecipientList,
+                [PDA_DATA_TONAME] = args.ReceiverName,
+                [PDA_DATA_TOADDR] = args.ReceiverAddress,
+                [PDA_DATA_MSG] = args.Message,
+                [PDA_DATA_TIME] = args.SentAt,
+                [PDA_DATA_FRNAME] = pda.OwnerName
             };
 
-            _deviceNetworkSystem.QueuePacket(uid, toAddress, payload);
+            _deviceNetworkSystem.QueuePacket(uid, args.ReceiverAddress, payload);
         }
 
         private void ProcessMessageDownload(EntityUid uid, float frameTime, PdaComponent pda)
         {
-            if (pda.MessageDLTimeRemaining > 0)
+            if (pda.MessageQueue.Count < 1)
+                return;
+
+            if (pda.MessageDLTimeRemaining >= 0)
             {
                 pda.MessageDLTimeRemaining -= frameTime;
+                var isDLTimeEnd = pda.MessageDLTimeRemaining <= 0;
 
-                var isDLTimeEnd = pda.MessageDLTime <= 0;
                 if (isDLTimeEnd)
                 {
+                    Logger.Debug($"Made it to ProcessMessageDownload.");
                     SpawnMessageFromQueue(uid, pda);
                 }
                 return;
             }
 
-            if (pda.MessageQueue.Count > 0)
+            if (pda.MessageQueue.Count > 0 || pda.MessageDLTimeRemaining <= 0)
             {
                 pda.MessageDLTimeRemaining = pda.MessageDLTime;
             }

@@ -1,4 +1,5 @@
-﻿using Content.Client.GameTicking.Managers;
+﻿using System.Linq;
+using Content.Client.GameTicking.Managers;
 using Content.Shared.PDA;
 using Robust.Shared.Utility;
 using Content.Shared.CartridgeLoader;
@@ -18,6 +19,7 @@ namespace Content.Client.PDA
         [Dependency] private readonly IGameTiming _gameTiming = default!;
         [Dependency] private readonly IEntitySystemManager _entitySystem = default!;
         private readonly ClientGameTicker _gameTicker;
+        private PdaMessengerUiState _state;
 
         public const int HomeView = 0;
         public const int ProgramListView = 1;
@@ -31,30 +33,19 @@ namespace Content.Client.PDA
         // <------ PDA Messenger Tests------>
         //private List<string> testRecipientList = new List<string> { "bob", "Mary", "Geraldo" };
 
-        private List<PdaMessengerUiState.PdaMessage> testMessages = new List<PdaMessengerUiState.PdaMessage>()
-        {
-            new PdaMessengerUiState.PdaMessage("bob", "Howdy"),
-            new PdaMessengerUiState.PdaMessage("mary", "Yo"),
-            new PdaMessengerUiState.PdaMessage("Geraldo", "Hello")
-        };
-
-        private List<PdaMessengerUiState.PdaConversation> testConversations =
-            new List<PdaMessengerUiState.PdaConversation>() { };
-
         public event Action<EntityUid>? OnProgramItemPressed;
         public event Action<EntityUid>? OnUninstallButtonPressed;
         public event Action<EntityUid>? OnInstallButtonPressed;
-        public event Action<Dictionary<string, string>>? OnNamePressed;
+        public event Action<string>? OnSendMessageButtonPressed;
 
-        public PdaMenu()
+        public event Action<List<PdaMessengerUiState.Recipient>>? OnNamePressed;
+
+        public PdaMenu(PdaMessengerUiState state)
         {
             IoCManager.InjectDependencies(this);
             _gameTicker = _entitySystem.GetEntitySystem<ClientGameTicker>();
             RobustXamlLoader.Load(this);
-
-            PopulateTestConversations();
-            PopulateConversationContainer(new PdaMessengerUiState(testConversations).PdaConversations);
-
+            _state = state;
 
             ViewContainer.OnChildAdded += control => control.Visible = false;
 
@@ -69,6 +60,10 @@ namespace Content.Client.PDA
             HomeButton.OnPressed += _ => ToHomeScreen();
             MessageButton.OnPressed += _ => ToMessageScreen();
             CreateMessageButton.OnPressed += _ => ToConversationScreen();
+            MessageSendButton.OnPressed += _ => SendMessagePressed();
+            SelectRecipientButton.OnPressed += _ => OnSelectRecipientButtonPressed();
+
+
 
             ProgramListButton.OnPressed += _ =>
             {
@@ -114,19 +109,9 @@ namespace Content.Client.PDA
             HideAllViews();
             ToHomeScreen();
         }
-
-        public void PopulateTestConversations()
-        {
-            foreach (PdaMessengerUiState.PdaMessage message in testMessages)
-            {
-                testConversations.Add(new PdaMessengerUiState.PdaConversation(message));
-            }
-        }
-
         public void UpdateState(PdaUpdateState state)
         {
             FlashLightToggleButton.IsActive = state.FlashlightEnabled;
-            PopulateRecipientList(state.KnownPDAMessengers);
 
             if (state.PdaOwnerInfo.ActualOwnerName != null)
             {
@@ -176,6 +161,11 @@ namespace Content.Client.PDA
             ActivateMusicButton.Visible = state.CanPlayMusic;
             ShowUplinkButton.Visible = state.HasUplink;
             LockUplinkButton.Visible = state.HasUplink;
+
+            PopulateRecipientList(state.KnownPDAMessengers);
+            PopulateConversations(state.ConversationList);
+
+
         }
 
         public void UpdateAvailablePrograms(List<(EntityUid, CartridgeComponent)> programs)
@@ -241,6 +231,17 @@ namespace Content.Client.PDA
                 row.AddChild(new Control() { HorizontalExpand = true });
         }
 
+        public void SendMessagePressed()
+        {
+            if (_state.CurrentRecipients.Count < 1 || MessageInput.Text == "")
+                return;
+            OnSendMessageButtonPressed?.Invoke( MessageInput.Text);
+            RecipientList.RemoveAllChildren();
+            MessageInput.Clear();
+            ToHomeScreen();
+        }
+
+
         /// <summary>
         /// Changes the current view to the home screen (view 0) and sets the tabs `IsCurrent` flag accordingly
         /// </summary>
@@ -280,26 +281,58 @@ namespace Content.Client.PDA
 
         public void PopulateRecipientList(Dictionary<string, string> recipientList)
         {
+            if (!RxCollapsibleBody.Visible)
+                return;
+            RecipientList.RemoveAllChildren();
+            _state.checkList.Clear();
+
             foreach (var recipient in recipientList)
             {
                 var row = new BoxContainer();
                 row.HorizontalExpand = true;
                 row.Margin = new Thickness(4);
 
-                var label = new Button();
-                label.Text = recipient.Value;
-                label.HorizontalExpand = true;
-                label.ClipText = true;
-                label.Name = recipient.Key;
-                label.OnPressed += _ =>
-                    OnNamePressed?.Invoke(new Dictionary<string, string>() { {label.Name, label.Text} });
-                row.AddChild(label);
+                var check = new CheckBox();
+                check.HorizontalExpand = true;
+                check.Name = recipient.Key;
+                check.Label.Text = recipient.Value;
+                check.OnToggled += _ =>
+                {
+                    if (_state.checkList.Contains(check))
+                    {
+                        _state.checkList.Remove(check);
+                    }
+                    else
+                    {
+                        _state.checkList.Add(check);
+                    }
+                };
+
+                row.AddChild(check);
                 RecipientList.AddChild(row);
             }
+
         }
 
-        public void PopulateConversationContainer(List<PdaMessengerUiState.PdaConversation> conversations)
+
+        public void OnSelectRecipientButtonPressed()
         {
+            List<PdaMessengerUiState.Recipient> recipients = new List<PdaMessengerUiState.Recipient>();
+            foreach (CheckBox check in _state.checkList)
+            {
+                if (check.Text == null || check.Name == null)
+                    return;
+                recipients.Add(new PdaMessengerUiState.Recipient(check.Text, check.Name));
+            }
+
+            OnNamePressed?.Invoke(recipients);
+        }
+
+        public void PopulateConversations(List<PdaConversation> conversations)
+        {
+            if (conversations.Count < 1)
+                return;
+
             ConversationContainer.RemoveAllChildren();
             ConversationScrollContainer.HScrollEnabled = conversations.Count > 9;
             foreach (var conversation in conversations)
@@ -308,31 +341,61 @@ namespace Content.Client.PDA
             }
         }
 
-        public void UpdateRecipient(string address, string name)
+        public void UpdateRecipient()
         {
-            RxCollapsibleBody.Visible = false;
-            RxCollapsibleHeading.Title = name + "-" + address;
+            RxCollapsibleBody.Visible = !RxCollapsibleBody.Visible;
+            //Adressees.RemoveAllChildren();
+            foreach (PdaMessengerUiState.Recipient recipient in _state.CurrentRecipients)
+            {
+                var label = new Label();
+                label.Text = recipient.Name;
+                Adressees.AddChild(label);
+            }
         }
 
-        public void AddPdaMessage(PdaMessengerUiState.PdaConversation conversation)
+        public void AddPdaMessage(PdaConversation conversation)
         {
             var row = new BoxContainer();
+            row.Name = conversation.ConversationId;
             row.HorizontalExpand = true;
             row.Orientation = BoxContainer.LayoutOrientation.Horizontal;
             row.Margin = new Thickness(4);
 
-            var nameLabel = new Label();
-            nameLabel.Text = conversation.Name;
-            nameLabel.HorizontalExpand = false;
-            nameLabel.SetWidth = 100f;
-            nameLabel.ClipText = true;
-            row.AddChild(nameLabel);
+            var namePlate = new BoxContainer();
+            namePlate.Orientation = BoxContainer.LayoutOrientation.Vertical;
+            namePlate.HorizontalExpand = false;
+            namePlate.SetWidth = 100f;
 
-            var messageLabel = new Label();
-            messageLabel.Text = conversation.LastMessage;
-            messageLabel.HorizontalExpand = true;
-            messageLabel.ClipText = true;
-            row.AddChild(messageLabel);
+            foreach (var sender in conversation.RecipientList)
+            {
+                var senderLabel = new Label();
+                senderLabel.Text = sender.Name;
+                senderLabel.ClipText = true;
+                namePlate.AddChild(senderLabel);
+            }
+
+            var lastMessageContainer = new BoxContainer();
+            lastMessageContainer.HorizontalExpand = true;
+            lastMessageContainer.Orientation = BoxContainer.LayoutOrientation.Horizontal;
+
+            var lastMessage = conversation.LastMessage();
+
+            var lastMessageSender = new Label();
+            lastMessageSender.HorizontalExpand = false;
+            lastMessageSender.ClipText = true;
+            lastMessageSender.SetWidth = 50f;
+            lastMessageSender.Text = lastMessage.SenderName;
+
+            var lastMessageLabel = new Label();
+            lastMessageLabel.HorizontalExpand = true;
+            lastMessageLabel.ClipText = true;
+            lastMessageLabel.Text = lastMessage.Message;
+
+            lastMessageContainer.AddChild(lastMessageSender);
+            lastMessageContainer.AddChild(lastMessageLabel);
+
+            row.AddChild(lastMessageContainer);
+            row.AddChild(namePlate);
 
             ConversationContainer.AddChild(row);
         }

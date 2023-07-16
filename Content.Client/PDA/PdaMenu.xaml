@@ -99,6 +99,7 @@
         </BoxContainer>
         <!-- 5 -->
         <BoxContainer Orientation="Vertical" HorizontalExpand="True" VerticalExpand="True">
+            <Button HorizontalExpand="True" Name="SelectRecipientButton" VerticalExpand="False" SetHeight="32" Text="^"/>
             <Collapsible Name="RecipientCollapsible" Orientation="Vertical" HorizontalExpand="True" VerticalExpand="True">
                 <CollapsibleHeading Name="RxCollapsibleHeading" Access="Public" Title="Recipient" SetHeight="32" />
                 <CollapsibleBody Name="RxCollapsibleBody" VerticalExpand="True">
@@ -110,7 +111,11 @@
             <ScrollContainer HorizontalExpand="True" VerticalExpand="True">
                 <BoxContainer Orientation="Vertical" Name="ConversationMessageContainer" HorizontalExpand="True" VerticalExpand="True" VerticalAlignment="Top" Margin="3 0"/>
             </ScrollContainer>
-            <LineEdit Name="MessageInput" HorizontalExpand="True" SetHeight="32"/>
+            <BoxContainer Orientation="Horizontal" HorizontalExpand="True" SetHeight="32" Name="Adressees"/>
+            <BoxContainer Orientation="Horizontal" HorizontalExpand="True">
+                <LineEdit Name="MessageInput" HorizontalExpand="True" SetHeight="32"/>
+                <Button Name="MessageSendButton" Text="Send"/>
+            </BoxContainer>
         </BoxContainer>
 
     </BoxContainer>
